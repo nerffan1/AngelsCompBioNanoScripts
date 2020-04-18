@@ -10,31 +10,25 @@
 #Requirements: Bash V4.0 or above
 #Last Updated: 04-03-20 at 8:13pm
 
-#Create CSV file
-MyCSV="${1}_InterBase_Values.csv"
-touch $MyCSV
-
 #Loop through all directories in the file
-for d in $(find $PWD -maxdepth 1 -type d)
+for d in $(find . -maxdepth 1 -name "*_struct" -type d)
 do
-  #Move CSV and Access directory
-  mv $MyCSV $d
+  #Access directory, create csv, and create crv/lis files
   cd $d
-
-  #Execute Curves
-
-  #Create LisList in directory to iterate through it
-  ls -v *.lis > LisList
-
-  for lis in 'cat $LisList' do
-
-  done
-
-  #Get out of folder
+  touch MYCSV.csv
+  ls -v *.pdb > pdblist
+  source generateCRV.sh pdblist
+  source curves.sh pdblist
+  #Iterate through LisList
+  ls -v *.lis > Lislist
+  #List=$(find . -maxdepth 1 -name Lis* -type f)
+  #echo $List
+  #for lisfile in 'cat $List'
+  #do
+    source GREADERCSV $lisfile MYCSV.csv
+  #done
+  break
   cd ..
-  pwd
-  echo "Im ouutta here!"
-
 done
 
 #ls -v *.lis > LisList
