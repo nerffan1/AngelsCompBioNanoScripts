@@ -1,0 +1,8 @@
+&inp file=common.pdb, comb=.t., fit=.t., grv=.t.,
+     lis=common, pdb=, &end
+    4   3  3    3    3
+    2  3  4
+    8  9 10
+   14 15 16
+   20 21 22
+   0.0   0.0   0.0   0.0
