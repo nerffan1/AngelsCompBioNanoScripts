@@ -47,11 +47,10 @@ int main(int argc, char* argv[])
 			{
 				std::getline(MyLisFile, Line);
 				std::stringstream MyString;
-				MyString << Line.substr(17); //This number was chosen arbitrarily
+				MyString << Line.substr(Line.find_first_of("   ",16)); //This number was chosen arbitrarily
 				std::cout << MyString.str() << std::endl;
 				PrintToCSV(MyString,MyCSVFile);
 			}
-
 		}
 	}
 	MyLisFile.close();
