@@ -10,6 +10,7 @@
 #Last Update: 04/09/20 at 09:54pm
 
 proc Get_avg_pdbs {molid windown prefixname} {
+    source trajectory_smooth.tcl
     set TotalFrames [molinfo $molid get numframes]
     if {$TotalFrames % $windown != 0} {
         puts "Your frames divided by your structures has no 0 remainder."
