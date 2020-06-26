@@ -1,0 +1,5 @@
+parm 143d.parm7
+trajin FILE_IN.traj
+autoimage
+strip :WAT
+trajout FILE_OUT.trr trr
