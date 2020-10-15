@@ -35,6 +35,31 @@ proc ProcessG4 {PDB PDBFile} {
     }
 }
 
+proc GGExtract {prefixname filenumber} {
+#Guanine Extraction
+set params {"74 to 88" "107 to 121" "g3g4" "107 to 121" "140 to 154" "g4g5" "269 to 283" "302 to 316" "g9g10" "302 to 316" "335 to 349" "g10g11"
+  "463 to 477" "496 to 510" "g15g16" "496 to 510" "529 to 543" "g16g17" "658 to 672" "691 to 705" "g21g22" "691 to 705" "724 to 738" "g22g23"}
+
+foreach {f j k} $params {
+    set sel2 [atomselect top "index $f $j"]
+    $sel2 writepdb $prefixname\_$filenumber\_$k.pdb
+    file copy $prefixname\_$filenumber\_$k.pdb Pairs/
+    file delete $prefixname\_$filenumber\_$k.pdb
+    $sel2 delete
+}
+
+#In Directory GG Extraction
+#--------------------------------------
+#This procedure taking takes specific parameters to make
+proc RangeGGExtract {prefixname step lim} {
+    for {set i 0} {$i < $lim} {incr i} {
+        set j [expr $i*100 + 49]
+        mol top [mol new $prefixname\_$j.pdb]
+        GGExtract $prefixname $j
+        mol delete top
+    }
+}
+
 #AVERAGE STRUCTURES OVER A TRAJECTORY + G Pair Extraction
 #--------------------------------------
 # This script finds the average structure at various intervals in a trajectory, but has
@@ -69,38 +94,12 @@ proc Get_avg_pdbs {molid windown prefixname trajCount} {
         set AIFile [expr $i - 49]
         if {$AIFile == 0 || $AIFile % 100 == 0} {
             #Copy the file to another Folder
-            puts "I will copy the Ab_initio file"
             file copy $prefixname\_$filenumber.pdb AbInitio/
 
-            #Guanine Extraction
-            foreach {f j k} {"74 to 88" "107 to 121" "g3g4" "107 to 121" "140 to 154" "g4g5"} {
-                set sel2 [atomselect top "index $f $j"]
-                $sel2 writepdb $prefixname\_$filenumber\_$k.pdb
-                file copy $prefixname\_$filenumber\_$k.pdb Pairs/
-                file delete $prefixname\_$filenumber\_$k.pdb
-                $sel2 delete
-            }
-            foreach {f j k} {"269 to 283" "302 to 316" "g9g10" "302 to 316" "335 to 349" "g10g11"} {
-                set sel2 [atomselect top "index $f $j"]
-                $sel2 writepdb $prefixname\_$filenumber\_$k.pdb
-                file copy $prefixname\_$filenumber\_$k.pdb Pairs/
-                file delete $prefixname\_$filenumber\_$k.pdb
-                $sel2 delete
-            }
-            foreach {f j k} {"463 to 477" "496 to 510" "g15g16" "496 to 510" "529 to 543" "g16g17"} {
-                set sel2 [atomselect top "index $f $j"]
-                $sel2 writepdb $prefixname\_$filenumber\_$k.pdb
-                file copy $prefixname\_$filenumber\_$k.pdb Pairs/
-                file delete $prefixname\_$filenumber\_$k.pdb
-                $sel2 delete
-            }
-            foreach {f j k} {"658 to 672" "691 to 705" "g21g22" "691 to 705" "724 to 738" "g22g23"} {
-                set sel2 [atomselect top "index $f $j"]
-                $sel2 writepdb $prefixname\_$filenumber\_$k.pdb
-                file copy $prefixname\_$filenumber\_$k.pdb Pairs/
-                file delete $prefixname\_$filenumber\_$k.pdb
-                $sel2 delete
-            }
+            #Extract GGpair
+            mol top [mol new $prefixname\_$filenumber.pdb]
+            GGExtract $prefixname $filenumber
+            mol delete top
         }
     }
 }
