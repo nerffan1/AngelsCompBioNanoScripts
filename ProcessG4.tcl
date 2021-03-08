@@ -1,6 +1,6 @@
 # PROCESS G4 STRUCTURES
 #----------------------------------------------------------------------------
-# This script works in conjunction with AVG_STRUCTS and
+# This script works in conjunction with AVG_STRUCTS (?) and
 # with trajectory_smooth.tcl in order to do 3 tasks:
 #   1) Get Average structures of a trajectory file
 #   2) Get a selection of these structures for Ab-Initio Transfer-Integral calculations
@@ -46,6 +46,8 @@ foreach {f j k} $params {
     file copy $prefixname\_$filenumber\_$k.pdb Pairs/
     file delete $prefixname\_$filenumber\_$k.pdb
     $sel2 delete
+}
+
 }
 
 #In Directory GG Extraction
