@@ -1,19 +1,17 @@
-global DATA params Indices TI TI_Length minpts pair pairsize Graph_Params pairnum
-DATA = readmatrix("1kf1.csv");
-Indices = load('Indices.mat');
-Indices = Indices.Indices; %Load as a matrix and not as a structure
-TI = readmatrix('1kf1_TI.dat');
-TI_Length = length(TI);
-params = ["Shift (dx)" "Slide (dy)" "Rise (dz)" "Tilt (\tau)" "Roll (\rho)" "Twist (\Omega)"];
-minpts = 12;
-pairsize = 9970;
-pair = 0;
+%Description: This script is meant to aid the analysis of the G4 structures
+% and holds various functions to performs different types of analysis,
+% particularly engaged with unsupervised machine learning algorithms.
+global KMEANS
+global DATA params Indices TI TI_Length minpts pair pairsize Graph_Params pairnum seven_ftrs
+if(LoadFiles())
+    clear
+    load('G4_Workspace.mat')
+end
 
-%% User Input
+%% User InputIndices
 
 %Ask for what GG Pair we want to analyze
 Pairs_to_analyze = input("What pair(s) would you like to analyze with dbscan? ");
-ranges = input("Please tells us the ranges for Epsilon in an n x 2 matrix: ");
 Graph_Params = input("\nWhat parameters would you like to graph? ");
 
 fprintf('You''ve chosen to graph %s and %s\n', params(Graph_Params(1)), params(Graph_Params(2)));
@@ -22,44 +20,52 @@ for i = 1:length(Pairs_to_analyze)
     pairnum = Pairs_to_analyze(i);
     pair = DATA(Indices(:,pairnum),:);
     
-    fprintf('\nTo perform on Pair %i\n',pairnum);
-    
     %Ask for options per pair
-    Input = input('What to do?\n1)K-Dist Graph\n2)GaugeEpsilons\n3)Gauge Epsilons (No files)\n4) Graph TI and Scatter\n\n');
-    
-    switch Input
-        %K-Dist Graph(s)
-        case 1
-            if (i == 1)
-                PlotK_Dist(false);
-            else
-                PlotK_Dist(true);
-            end
-            legend
-            
-            %Gauge Various Epsilons
-        case 2
-            GaugeEpsilon(ranges(i,:));
-            
-            %Graph Scatter Plot
-        case 3
-            GaugeIndivEp(ranges(i,:));
-            
-            % Graph scattering plotting and 
-        case 4
-            Input = input('Please enter an epsilon value: ');
-            PlotTI(Input)
+    Input = -2;
+    while (Input ~= -1)
+        
+        
+        fprintf('\nTo perform on Pair %i\n',pairnum);
+        fprintf('1)K-Dist Graph\n2)GaugeEpsilons\n3)Gauge Epsilons (No files)\n4) Graph TI and Scatter\n');
+        fprintf('5)Dendogram \n6)Scatter plot from Hierarchical Cutoff\n7)K-Means clustering with time\n');
+        fprintf('8)Rolling Average\n9)Time Scatter Plots');
+        Input = input('Choice: ');
+        
+        switch Input
+            case 1
+                if (i == 1)
+                    PlotK_Dist(false)
+                else
+                    PlotK_Dist(true)
+                end
+                legend
+                
+            case 2
+                GaugeEpsilon()
+            case 3
+                GaugeIndivEp()
+            case 4
+                PlotTI()
+            case 5
+                Dendrograms()
+            case 6
+                ClusterHier()
+            case 7
+                Kmeans_Time()
+            case 8
+                RollingAverage()
+            case 9
+                TimeScatter()
+        end
     end
-    
 end
 
-
 %% Additional Functions
-function [] = GaugeEpsilon(eps)
+function [] = GaugeEpsilon()
 global pair minpts pairsize TI pairnum
 
-%Allocate memory
-iter = 50;
+%Input
+[eps , iter] = epsilonInput();
 
 % Allocate Table Data for major data
 Epsilon = linspace(eps(1),eps(2),iter)';
@@ -121,11 +127,11 @@ save(filename,'EpsTable')
 
 end
 
-function [] = GaugeIndivEp(eps)
+function [] = GaugeIndivEp()
 global pair minpts pairsize TI pairnum
 
-%Allocate memory
-iter = 50;
+%Input
+[eps , iter] = epsilonInput();
 
 % Allocate Table Data for major data
 Epsilon = linspace(eps(1),eps(2),iter)';
@@ -173,6 +179,11 @@ save(filename,'EpsTable')
 
 end
 
+function [eps , iter] = epsilonInput()
+eps = input("Please tells us the ranges for Epsilon in an n x 2 matrix: ");
+iter = input("Please tells us how many iterations to do: ");
+end
+
 function C = IntersectionTI(labels,clusnum)
 % Description: This function takes in labels and gives back the indices for
 % intersection of values within a cluster and the TI subset of data
@@ -189,7 +200,7 @@ for i = 1:length(labels)
     end
 end
 
-%Convert DBIndices to OG indices
+%Convert DIndices to OG indices
 DIndices = pairnum + (8*(DIndices-1));
 
 %Indices of Ab-Initio in OG Data
@@ -220,8 +231,11 @@ plot(sort(kD(end,:)));
 
 end
 
-function [] = PlotTI(epsilon)
-global pair minpts pairnum Graph_Params params TI;
+function [] = PlotTI()
+global pair minpts pairnum Graph_Params params TI seven_ftrs;
+
+epsilon = input('Please enter an epsilon value: ');
+
 % Scatter Plot with DBSCAN Labels
 figure
 labels = dbscan(pair,epsilon,minpts);
@@ -231,13 +245,13 @@ xlabel(params(1))
 ylabel(params(2))
 
 % % Plot the TI values within cluster of choice
-% C = IntersectionTI(labels, 1);
-% figure
-% plot(1:length(C),TI(C));
-% title("TI Values in Noise")
-% ylabel("TI Value")
-% xlabel("Data Count")
-% 
+C = IntersectionTI(labels, 1);
+figure
+scatter(seven_ftrs(C,1),seven_ftrs(C,7));
+title("TI Values in Noise")
+ylabel("TI Value")
+xlabel("Data Count")
+
 % % Plot OG TI points
 % figure
 % PairAb = (49*8 + pairnum):100*8:79760;
@@ -246,4 +260,204 @@ ylabel(params(2))
 % title("TI Values (Original Values)")
 % ylabel("TI Value")
 % xlabel("Data Count")
+end
+
+function [] = Dendrograms()
+global DATA pair pairnum
+figure
+link = linkage(pair, 'average');
+dendrogram(link);
+
+cutoff = input('What cutoff would you like? ');
+dendrogram(link,'ColorThreshold',cutoff);
+%Create cutoff and scatter plot
+figure
+T = cluster(link,'Cutoff',cutoff,'Criterion','distance');
+s = scatter(pair(:,3),pair(:,4),20,T,'.');
+s.AlphaData  = .01;
+end
+
+function [] = ClusterHier()
+global pair
+cutoff = input('Please enter a cutoff value: ');
+
+figure
+T = clusterdata(pair,'Linkage','median','MaxClust',7);
+scatter(pair(:,3),pair(:,4),zeros(9970,1),5,T,'filled')
+
+end
+
+%Description: This function performs a K-means clustering with various k's
+%with silhouette scores to see if there's any
+function [] = Kmeans_Time()
+global pair seven_ftrs TI pairnum
+
+%Create time column for data
+time_1kf1 = [1:2991 3001:3486 3501:5993 6001:10000]' ;
+timed_pair = [pair time_1kf1];
+
+inp = input('1) Cluster Plots\n2) silh\n3) Cluster Evaluation\n4) Plot TI Scatter\n5) K-Means TI Histograms\n\nChoice: ');
+
+%The data is for 2 clusters
+clusts = 2;
+
+switch inp
+    case 1
+        ClusterScat()
+    case 2
+        silh()
+    case 3
+        output = KMeansTimeEval();
+    case 4
+        TI_Plot_KMeans()
+    case 5
+        TI_Hist_KMeans()
+end
+
+%K mean analysis from MATLAB
+%pool = parpool('threads');
+
+    function output = ClusterScat()
+        for centers = 2:clusts
+            
+            idx = kmeans(pair,centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
+            
+            %Go through each
+            figure
+            for i = 1:centers
+                clusterpts = (idx == i);
+                scatter(pair(clusterpts,1),pair(clusterpts,3))
+                hold on
+            end
+            title("K-Means clustering (k=2) - GG_" + num2str(pairnum))
+        end
+    end
+    function [] = silh()
+        figure
+        tiledlayout(3,3)
+        for centers = 2:clusts
+            idx = kmeans(pair,centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
+            nexttile
+            [silh,~] = silhouette(pair,idx);
+            xlabel('Silhouette Value')
+            ylabel('Cluster')
+            %Calculate score and load to vector
+            Score = mean(silh);
+            
+            title('Silhouette Score:', Score)
+        end
+    end
+    function time_eval = KMeansTimeEval()
+        time_eval = cell(clusts-1,1);
+        for centers = 2:clusts
+            idx = kmeans(pair,centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
+            
+            %Loop through each cluster (i.e. amount of centers) and
+            %evaluate the continuity of timestamps by checking the diff()
+            %of a sorted set of timestamps (which it already is).
+            ind_eval = cell(centers,1);
+            for clust = 1:centers
+                time = timed_pair(idx == clust,7);
+                
+                figure
+                plot(1:length(time),time)
+                hold on
+                time = diff(time);
+                plot(1:length(time),time.*15)
+                title("K-Means (k=2) of GG_" + num2str(pairnum) + "(cluster " + num2str(clust) + ")")
+                
+                unq = unique(time);
+                unq_l = length(unq);
+                unq = [unq zeros(unq_l,1)];
+                
+                %Sum the number of times the diff is found
+                for k = 1:unq_l
+                    unq(k,2) = sum(time == unq(k));
+                end
+                
+                %Then add this to a cell array
+                ind_eval(clust) = {unq};
+            end
+            time_eval(centers - 1) = {ind_eval};
+        end
+    end
+    function [] = TI_Plot_KMeans()
+        for centers = 2:clusts
+            idx = kmeans(pair,centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
+            for i = 1:centers
+                C = IntersectionTI(idx, i);
+                figure
+                plot(1:length(C),seven_ftrs(C,7));
+                title("TI Values in Noise (k=" + int2str(centers) + ")" + ", Cluster " + int2str(i) )
+                ylabel("TI Value")
+                xlabel("Data Count")
+                figure
+                scatter(seven_ftrs(C,3),seven_ftrs(C,4));
+                title("K-Means Clustering, (k=" + int2str(centers) + ")" + ", Cluster " + int2str(i) )
+            end
+        end
+    end
+    function [] = TI_Hist_KMeans()
+        for centers = 2:clusts
+            idx = kmeans(pair,centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
+            for i = 1:centers
+                C = IntersectionTI(idx, i);
+                figure
+                histogram(TI(C),10)
+                title("Histogram of Cluster " + num2str(i) + " in GG" + num2str(pairnum))
+            end
+        end
+    end
+end
+
+%Description: This function graphs rolling averages for subsets of time of
+%the data points. The window is user-defined
+function [] = RollingAverage()
+end
+
+%Description: Scatter plots with color labels denoting time-series
+function [] = TimeScatter()
+
+end
+
+%Description: Load files at beginning of file in order to data ready for
+%analysis.
+function bool = LoadFiles()
+global KMEANS seven_ftrs DATA Indices TI TI_Length params minpts pairsize pair
+clear
+if (~isfile('G4_Workspace.mat'))
+    % Load additional files
+    seven_ftrs = load('7_features.mat');
+    seven_ftrs  = seven_ftrs .AI;
+    DATA = readmatrix("1kf1.csv");
+    Indices = load('Indices.mat');
+    Indices = Indices.Indices;
+    TI = readmatrix('1kf1_TI.dat');
+    TI_Length = length(TI);
+    params = ["Shift (dx)" "Slide (dy)" "Rise (dz)" "Tilt (\tau)" "Roll (\rho)" "Twist (\Omega)"];
+    minpts = 12;
+    pairsize = 9970;
+    pair = 0;
+    
+    % Load K_means clustering.
+    Kmeans_File = 'KMEANS_IND.mat';
+    if (isfile(Kmeans_File))
+        KMEANS = load(Kmeans_File);
+        KMEANS = KMEANS.idx;
+    else
+        KMEANS = zeros(pairsize , 8);
+        centers = input('How many clusters would you like to create');
+        for p = 1:8
+            pair_ind = p:8:79760;
+            KMEANS(:,p) = kmeans(DATA(pair_ind,:),centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
+        end
+        save(Kmeans_File,'KMEANS');
+    end
+    
+    %Save for later
+    save('G4_Workspace.mat');
+    bool = false;
+else
+    bool = true;
+end
 end
