@@ -3,11 +3,10 @@
 % particularly engaged with unsupervised machine learning algorithms.
 global KMEANS
 global DATA params Indices TI TI_Length minpts pair pairsize Graph_Params pairnum seven_ftrs
+
 if(LoadFiles())
-    clear
     load('G4_Workspace.mat')
 end
-
 %% User InputIndices
 
 %Ask for what GG Pair we want to analyze
@@ -61,6 +60,12 @@ for i = 1:length(Pairs_to_analyze)
 end
 
 %% Additional Functions
+
+% Description: This function tests a range of values between 2 epsilons. 
+% The epsilon is part the parameter that's changed in the DBSCAN clustering 
+% method. It creates various files with statistics regarding each
+% clustering, and separate files with more detailed information of each
+% clustering (corresponding to a unique epsilon).
 function [] = GaugeEpsilon()
 global pair minpts pairsize TI pairnum
 
@@ -179,15 +184,16 @@ save(filename,'EpsTable')
 
 end
 
+%Description: This function prompts user for input in DBSCAN 
 function [eps , iter] = epsilonInput()
 eps = input("Please tells us the ranges for Epsilon in an n x 2 matrix: ");
 iter = input("Please tells us how many iterations to do: ");
 end
 
+%Description: This function takes the indices of a clustering performed on 
+% a superset of data of the TI values. This function finds the indices that
+%correspond ,  
 function C = IntersectionTI(labels,clusnum)
-% Description: This function takes in labels and gives back the indices for
-% intersection of values within a cluster and the TI subset of data
-
 global pairnum;
 %Labels is a logical array subset of Original (OG) data, but we need
 %the index numbers. We must convert this to an array of actual indices
@@ -216,7 +222,7 @@ C = ((C-pairnum-392)/100) + pairnum;
 end
 
 function [] = PlotK_Dist(append)
-global minpts pair pairnum
+global minpts pair
 if (append)
     hold on
 else
@@ -290,17 +296,16 @@ end
 %Description: This function performs a K-means clustering with various k's
 %with silhouette scores to see if there's any
 function [] = Kmeans_Time()
-global pair seven_ftrs TI pairnum
+global pair seven_ftrs TI pairnum KMEANS
 
 %Create time column for data
 time_1kf1 = [1:2991 3001:3486 3501:5993 6001:10000]' ;
-timed_pair = [pair time_1kf1];
 
 inp = input('1) Cluster Plots\n2) silh\n3) Cluster Evaluation\n4) Plot TI Scatter\n5) K-Means TI Histograms\n\nChoice: ');
 
-%The data is for 2 clusters
+% 2 clusters since this maximized the Sillhouette scores before.
 clusts = 2;
-
+idx = KMEANS(:,pairnum);
 switch inp
     case 1
         ClusterScat()
@@ -316,48 +321,41 @@ end
 
 %K mean analysis from MATLAB
 %pool = parpool('threads');
-
-    function output = ClusterScat()
-        for centers = 2:clusts
-            
-            idx = kmeans(pair,centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
-            
-            %Go through each
-            figure
-            for i = 1:centers
-                clusterpts = (idx == i);
-                scatter(pair(clusterpts,1),pair(clusterpts,3))
-                hold on
-            end
-            title("K-Means clustering (k=2) - GG_" + num2str(pairnum))
+    
+    %Description: Simple scatter plot showing the K-means clusters. 
+    function output = ClusterScat()     
+        %Go through each cluster
+        figure
+        for i = 1:clusts
+            clusterpts = (idx == i);
+            scatter(pair(clusterpts,1),pair(clusterpts,3))
+            hold on
         end
+        title("K-Means clustering (k=2) - GG_" + num2str(pairnum))
     end
+
+    %Description: Sillhouette score for the K-Means clustering
     function [] = silh()
         figure
-        tiledlayout(3,3)
-        for centers = 2:clusts
-            idx = kmeans(pair,centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
-            nexttile
             [silh,~] = silhouette(pair,idx);
             xlabel('Silhouette Value')
             ylabel('Cluster')
             %Calculate score and load to vector
-            Score = mean(silh);
-            
+            Score = mean(silh);     
             title('Silhouette Score:', Score)
-        end
+       
     end
+
+    %Description: Evaluate the continuity of the k-means clustering
     function time_eval = KMeansTimeEval()
         time_eval = cell(clusts-1,1);
         for centers = 2:clusts
-            idx = kmeans(pair,centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
-            
             %Loop through each cluster (i.e. amount of centers) and
             %evaluate the continuity of timestamps by checking the diff()
             %of a sorted set of timestamps (which it already is).
             ind_eval = cell(centers,1);
             for clust = 1:centers
-                time = timed_pair(idx == clust,7);
+                time = time_1kf1(idx == clust);
                 
                 figure
                 plot(1:length(time),time)
@@ -381,9 +379,11 @@ end
             time_eval(centers - 1) = {ind_eval};
         end
     end
+
+    %Description: Plots the TI values  of each clustering
+    %NOTE: NEEDS REVISION due to function IntersectionTI
     function [] = TI_Plot_KMeans()
         for centers = 2:clusts
-            idx = kmeans(pair,centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
             for i = 1:centers
                 C = IntersectionTI(idx, i);
                 figure
@@ -397,9 +397,11 @@ end
             end
         end
     end
+
+    %Description: Histogram based of TI values for each clustering.
+    %NOTE: NEEDS REVISION for same reason above
     function [] = TI_Hist_KMeans()
         for centers = 2:clusts
-            idx = kmeans(pair,centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
             for i = 1:centers
                 C = IntersectionTI(idx, i);
                 figure
