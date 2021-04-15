@@ -61,8 +61,8 @@ end
 
 %% Additional Functions
 
-% Description: This function tests a range of values between 2 epsilons. 
-% The epsilon is part the parameter that's changed in the DBSCAN clustering 
+% Description: This function tests a range of values between 2 epsilons.
+% The epsilon is part the parameter that's changed in the DBSCAN clustering
 % method. It creates various files with statistics regarding each
 % clustering, and separate files with more detailed information of each
 % clustering (corresponding to a unique epsilon).
@@ -184,15 +184,15 @@ save(filename,'EpsTable')
 
 end
 
-%Description: This function prompts user for input in DBSCAN 
+%Description: This function prompts user for input in DBSCAN
 function [eps , iter] = epsilonInput()
 eps = input("Please tells us the ranges for Epsilon in an n x 2 matrix: ");
 iter = input("Please tells us how many iterations to do: ");
 end
 
-%Description: This function takes the indices of a clustering performed on 
+%Description: This function takes the indices of a clustering performed on
 % a superset of data of the TI values. This function finds the indices that
-%correspond ,  
+%correspond ,
 function C = IntersectionTI(labels,clusnum)
 global pairnum;
 %Labels is a logical array subset of Original (OG) data, but we need
@@ -285,7 +285,6 @@ end
 
 function [] = ClusterHier()
 global pair
-cutoff = input('Please enter a cutoff value: ');
 
 figure
 T = clusterdata(pair,'Linkage','median','MaxClust',7);
@@ -321,9 +320,9 @@ end
 
 %K mean analysis from MATLAB
 %pool = parpool('threads');
-    
-    %Description: Simple scatter plot showing the K-means clusters. 
-    function output = ClusterScat()     
+
+%Description: Simple scatter plot showing the K-means clusters.
+    function output = ClusterScat()
         %Go through each cluster
         figure
         for i = 1:clusts
@@ -334,19 +333,19 @@ end
         title("K-Means clustering (k=2) - GG_" + num2str(pairnum))
     end
 
-    %Description: Sillhouette score for the K-Means clustering
+%Description: Sillhouette score for the K-Means clustering
     function [] = silh()
         figure
-            [silh,~] = silhouette(pair,idx);
-            xlabel('Silhouette Value')
-            ylabel('Cluster')
-            %Calculate score and load to vector
-            Score = mean(silh);     
-            title('Silhouette Score:', Score)
-       
+        [silh,~] = silhouette(pair,idx);
+        xlabel('Silhouette Value')
+        ylabel('Cluster')
+        %Calculate score and load to vector
+        Score = mean(silh);
+        title('Silhouette Score:', Score)
+        
     end
 
-    %Description: Evaluate the continuity of the k-means clustering
+%Description: Evaluate the continuity of the k-means clustering
     function time_eval = KMeansTimeEval()
         time_eval = cell(clusts-1,1);
         for centers = 2:clusts
@@ -380,8 +379,8 @@ end
         end
     end
 
-    %Description: Plots the TI values  of each clustering
-    %NOTE: NEEDS REVISION due to function IntersectionTI
+%Description: Plots the TI values  of each clustering
+%NOTE: NEEDS REVISION due to function IntersectionTI
     function [] = TI_Plot_KMeans()
         for centers = 2:clusts
             for i = 1:centers
@@ -398,8 +397,8 @@ end
         end
     end
 
-    %Description: Histogram based of TI values for each clustering.
-    %NOTE: NEEDS REVISION for same reason above
+%Description: Histogram based of TI values for each clustering.
+%NOTE: NEEDS REVISION for same reason above
     function [] = TI_Hist_KMeans()
         for centers = 2:clusts
             for i = 1:centers
@@ -414,7 +413,34 @@ end
 
 %Description: This function graphs rolling averages for subsets of time of
 %the data points. The window is user-defined
+%REVISION: The Average values of the parameter is the same for every
+%'different' pair since I'm not properly getting the TI values of each
+%different GG pair
 function [] = RollingAverage()
+global seven_ftrs pairnum
+window = input('\nWhat''s the window of points you''d like in the average? ');
+pm = input('/nWhat parameter do you want to graph? ');
+ranges = 0:(window):800;
+
+%Variables to keep track of
+roll_l = 800/window;
+sum = 0;
+roll = zeros(1,roll_l);
+roll_i = 0;
+for i = 1:length(ranges)-1
+    for j = (ranges(i)+1):ranges(i+1)
+        sum = sum + seven_ftrs(j,pm);
+    end
+    roll_i = roll_i + 1;
+    roll(roll_i) = sum/window;
+    sum = 0;
+end
+
+%Plot the rolling average
+figure
+plot(window*(1:roll_l),roll)
+title("TI Rolling Average of " + num2str(pairnum))
+ylabel("TI Average Value")
 end
 
 %Description: Scatter plots with color labels denoting time-series
@@ -436,7 +462,7 @@ if (~isfile('G4_Workspace.mat'))
     Indices = Indices.Indices;
     TI = readmatrix('1kf1_TI.dat');
     TI_Length = length(TI);
-    params = ["Shift (dx)" "Slide (dy)" "Rise (dz)" "Tilt (\tau)" "Roll (\rho)" "Twist (\Omega)"];
+    params = ["Shift (dx)" "Slide (dy)" "Rise (dz)" "Tilt (\tau)" "Roll (\rho)" "Twist (\Omega)" "TI Value"];
     minpts = 12;
     pairsize = 9970;
     pair = 0;
