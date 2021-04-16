@@ -221,6 +221,7 @@ C = ((C-pairnum-392)/100) + pairnum;
 
 end
 
+%Description: Plot's the smallest Kth Distance for every point n the data.
 function [] = PlotK_Dist(append)
 global minpts pair
 if (append)
@@ -418,27 +419,27 @@ end
 %different GG pair
 function [] = RollingAverage()
 global seven_ftrs pairnum
+
 window = input('\nWhat''s the window of points you''d like in the average? ');
 pm = input('/nWhat parameter do you want to graph? ');
-ranges = 0:(window):800;
 
-%Variables to keep track of
-roll_l = 800/window;
-sum = 0;
-roll = zeros(1,roll_l);
-roll_i = 0;
-for i = 1:length(ranges)-1
-    for j = (ranges(i)+1):ranges(i+1)
-        sum = sum + seven_ftrs(j,pm);
-    end
-    roll_i = roll_i + 1;
-    roll(roll_i) = sum/window;
-    sum = 0;
-end
+%Allocation of resources
+i = pairnum:8:800;
+
+MM = movmean(seven_ftrs(i,pm),window);
+
+% for i = 1:length(ranges)-1
+%     for j = (ranges(i)+1):ranges(i+1)
+%     end
+%     roll_i = roll_i + 1;
+%     roll(roll_i) = sum/window;
+%     sum = 0;
+% end
+
 
 %Plot the rolling average
 figure
-plot(window*(1:roll_l),roll)
+plot(1:length(MM),MM)
 title("TI Rolling Average of " + num2str(pairnum))
 ylabel("TI Average Value")
 end
