@@ -430,6 +430,7 @@ MM = movmean(seven_ftrs(i,pm),window);
 
 % for i = 1:length(ranges)-1
 %     for j = (ranges(i)+1):ranges(i+1)
+%         sum = sum + seven_ftrs(j,pm);
 %     end
 %     roll_i = roll_i + 1;
 %     roll(roll_i) = sum/window;
