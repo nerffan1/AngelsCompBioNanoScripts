@@ -25,7 +25,7 @@ proc ProcessLongG4 {PDB PDBFile traj} {
     #Create a directory for GG pairs to be stored
     file mkdir Pairs
 
-    #Load PDB Structure
+    #Load PDB Structure and create useful variables
     mol new $PDBFile
     set iter 8
     set frames 50000
@@ -36,7 +36,7 @@ proc ProcessLongG4 {PDB PDBFile traj} {
     for {set i 0} {$i < $iter} {incr i} {
         animate delete all
         set FF [expr $i*$frames]
-        set LF [expr $FF + [$frames - 1]]]
+        set LF [expr $FF + [expr $frames - 1]]
         mol addfile $traj first $FF last $LF waitfor all
         Get_avg_pdbs 0 $avgframes $PDB $trajCount
         set trajCount [expr $trajCount + 1]
