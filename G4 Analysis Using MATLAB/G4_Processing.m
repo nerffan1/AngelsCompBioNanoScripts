@@ -1,16 +1,24 @@
 %Description: This script is meant to aid the analysis of the G4 structures
 % and holds various functions to performs different types of analysis,
 % particularly engaged with unsupervised machine learning algorithms.
-global KMEANS
-global DATA params Indices TI TI_Length minpts pair pairsize Graph_Params pairnum seven_ftrs
+%Author: Angel-Emilio Villegas Sanchez
+%LAST UPDATE: 06/01/21
+
+global KMEANS %This variable is a clustering of individual strands of data
+global DATA params TI TI_Length minpts pair pairsize Graph_Params pairnum seven_ftrs G4
+global Indices AI_Ind
+
+G4 = input('Which G4 would you like to analyze:\n-1KF1\n-1K8P\n','s');
 
 if(LoadFiles())
-    load('G4_Workspace.mat')
+    load(G4 + "_Workspace.mat")
 end
+
 %% User InputIndices
 
 %Ask for what GG Pair we want to analyze
 Pairs_to_analyze = input("What pair(s) would you like to analyze with dbscan? ");
+params
 Graph_Params = input("\nWhat parameters would you like to graph? ");
 
 fprintf('You''ve chosen to graph %s and %s\n', params(Graph_Params(1)), params(Graph_Params(2)));
@@ -27,7 +35,7 @@ for i = 1:length(Pairs_to_analyze)
         fprintf('\nTo perform on Pair %i\n',pairnum);
         fprintf('1)K-Dist Graph\n2)GaugeEpsilons\n3)Gauge Epsilons (No files)\n4) Graph TI and Scatter\n');
         fprintf('5)Dendogram \n6)Scatter plot from Hierarchical Cutoff\n7)K-Means clustering with time\n');
-        fprintf('8)Rolling Average\n9)Time Scatter Plots');
+        fprintf('8)Rolling Average\n9)Time Scatter Plots\n10)Figures for Paper\n11)DBSCAN\n');
         Input = input('Choice: ');
         
         switch Input
@@ -55,11 +63,35 @@ for i = 1:length(Pairs_to_analyze)
                 RollingAverage()
             case 9
                 TimeScatter()
+            case 10
+                PaperFigure()
+            case 11
+                DBCluster()
         end
     end
 end
 
 %% Additional Functions
+function [] = DBCluster()
+global pair minpts pairsize pairnum DATA Graph_Params seven_ftrs TI AI_Ind
+figure
+kD = pdist2(DATA,DATA,'euc','Smallest',minpts); % The minpts smallest pairwise distances
+plot(sort(kD(end,:)));
+
+eps = input('What epsilon would you like?');
+labels = dbscan(DATA,eps,minpts);
+
+figure
+gscatter(DATA(:,Graph_Params(1)),DATA(:,Graph_Params(2)),labels)
+
+%Plot the TI over time. Find overlap of indices
+DAT_Ind = 1:length(DATA);
+DAT_Ind = DAT_Ind(labels == 1); %Get the density connected values
+Conn_Ind = intersect(DAT_Ind,AI_Ind);
+TI_Ind = (AI_Ind == Conn_Ind');
+TI_Ind = any(TI_Ind);
+plot(1:length(Conn_Ind),TI(TI_Ind))
+end
 
 % Description: This function tests a range of values between 2 epsilons.
 % The epsilon is part the parameter that's changed in the DBSCAN clustering
@@ -193,6 +225,7 @@ end
 %Description: This function takes the indices of a clustering performed on
 % a superset of data of the TI values. This function finds the indices that
 %correspond ,
+%MUST UPDATE: Use method in DBCluster() for concise code
 function C = IntersectionTI(labels,clusnum)
 global pairnum;
 %Labels is a logical array subset of Original (OG) data, but we need
@@ -222,6 +255,7 @@ C = ((C-pairnum-392)/100) + pairnum;
 end
 
 %Description: Plot's the smallest Kth Distance for every point n the data.
+%MUST UPDATE: Add option to do individual pair, or do the whole data
 function [] = PlotK_Dist(append)
 global minpts pair
 if (append)
@@ -450,42 +484,126 @@ function [] = TimeScatter()
 
 end
 
+%Description: Create Figure for Paper
+function [] = PaperFigure()
+global KMEANS DATA Graph_Params params G4
+
+%Create TiledLayout
+figure
+subplot(2,3,[1 2 4 5])
+
+%Create a 2D plot of 2 shape parameters
+
+index = [];
+if (isfile(G4 + "_Kmeans_All.mat"))
+    index = load(G4 + "_Kmeans_All.mat",'index');
+    index = index.index;
+else
+    index = kmeans(DATA,2,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
+    save(G4 + "_Kmeans_All.mat",'index');
+end
+
+%Scatter Plot for Clusters 1/2
+c1_x = DATA(index == 1,Graph_Params(1));
+c1_y = DATA(index == 1,Graph_Params(2));
+c2_x = DATA(index == 2,Graph_Params(1));
+c2_y = DATA(index == 2,Graph_Params(2));
+
+scatter(c1_x,c1_y,16,[0 0.4470 0.7410],'.')
+hold on
+scatter(c2_x,c2_y,16,[0.8500 0.3250 0.0980],'.')
+xlabel(params(Graph_Params(1)))
+ylabel(params(Graph_Params(2)))
+title(G4 + ": " + params(Graph_Params(1)) + " vs. " + params(Graph_Params(2)))
+a = get(gcf,'Children')
+a.FontSize = 16;
+hold off
+
+%Add the Silhouette score
+subplot(2,3,3)
+[silh,h] = silhouette(DATA,index);
+xlabel('Silhouette Value')
+ylabel('Cluster')
+Score = mean(silh);
+title("Silhouette Score: " + num2str(Score))
+
+%Add the Bar Graph Tile
+subplot(2,3,6)
+pairs = zeros(8,2);
+for r = 1:8
+    indices = index(r:8:length(index));
+    pairs(r,1) = sum(indices==1);
+    pairs(r,2) = sum(indices==2);
+end
+% Create categories (must reorder to make sure order is not changed)
+X = categorical({'GG_1','GG_2','GG_3','GG_4','GG_5','GG_6','GG_7','GG_8'});
+X = reordercats(X,{'GG_1','GG_2','GG_3','GG_4','GG_5','GG_6','GG_7','GG_8'});
+b = bar(X, pairs);
+b(1,1).FaceColor = [0 0.4470 0.7410];
+b(1,2).FaceColor  = [0.8500 0.3250 0.0980];
+title('Clusters per GG-Pair Structure')
+ylabel('Counts')
+end
+
 %Description: Load files at beginning of file in order to data ready for
 %analysis.
 function bool = LoadFiles()
-global KMEANS seven_ftrs DATA Indices TI TI_Length params minpts pairsize pair
-clear
-if (~isfile('G4_Workspace.mat'))
-    % Load additional files
-    seven_ftrs = load('7_features.mat');
-    seven_ftrs  = seven_ftrs .AI;
-    DATA = readmatrix("1kf1.csv");
-    Indices = load('Indices.mat');
-    Indices = Indices.Indices;
+global KMEANS seven_ftrs DATA Indices TI TI_Length params minpts pairsize pair G4 AI_Ind
+
+%Ask user if they want to exchange the original output of Curves in order
+%to fix it
+dat_exc = input('Would you like to exchange columns of negated data (1,2,4,5)? This would fix the negated values (Type 0 or 1): ' );
+dat_exc = cast(dat_exc,'logical');
+
+if (~isfile(G4 + "_Workspace.mat"))
+    
+    % Load Shape Features
+    DATA = readmatrix(G4 + ".csv");
+    if (dat_exc)
+        DATA(1:8:length(DATA),1:2) = DATA(1:8:length(DATA),1:2).*-1;
+        DATA(1:8:length(DATA),4:5) = DATA(1:8:length(DATA),4:5).*-1;
+        DATA(2:8:length(DATA),1:2) = DATA(2:8:length(DATA),1:2).*-1;
+        DATA(2:8:length(DATA),4:5) = DATA(2:8:length(DATA),4:5).*-1;
+        G4 = G4 + "_de"; %Change naming for new variables
+    end
+    
+    dat_l = length(DATA);
     TI = readmatrix('1kf1_TI.dat');
     TI_Length = length(TI);
+    Indices = load(G4 + "_Indices.mat");
+    Indices = Indices.Indices;
     params = ["Shift (dx)" "Slide (dy)" "Rise (dz)" "Tilt (\tau)" "Roll (\rho)" "Twist (\Omega)" "TI Value"];
     minpts = 12;
-    pairsize = 9970;
+    pairsize = length(DATA)/8;
     pair = 0;
+    AI_Ind = [(49*8 + 1):100*8:dat_l (49*8 + 2):100*8:dat_l (49*8 + 3):100*8:dat_l (49*8 + 4):100*8:dat_l (49*8 + 5):100*8:dat_l (49*8 + 6):100*8:dat_l (49*8 + 7):100*8:dat_l (49*8 + 8):100*8:dat_l];
+    AI_Ind = sort(AI_Ind);
     
-    % Load K_means clustering.
-    Kmeans_File = 'KMEANS_IND.mat';
-    if (isfile(Kmeans_File))
-        KMEANS = load(Kmeans_File);
+    %TEMPORARILY CHANGE THIS
+    seven_ftrs = load("1KF1_7ftrs.mat");
+    seven_ftrs  = seven_ftrs.AI;
+    seven_ftrs (1:8:length(seven_ftrs ),1:2) = seven_ftrs (1:8:length(seven_ftrs ),1:2).*-1;
+    seven_ftrs (1:8:length(seven_ftrs ),4:5) = seven_ftrs (1:8:length(seven_ftrs ),4:5).*-1;
+    seven_ftrs (2:8:length(seven_ftrs ),1:2) = seven_ftrs (2:8:length(seven_ftrs ),1:2).*-1;
+    seven_ftrs (2:8:length(seven_ftrs ),4:5) = seven_ftrs (2:8:length(seven_ftrs ),4:5).*-1;
+    
+    % Load K_means clustering for individual GG pairs
+    GG_Kmeans_File = G4 + "_KMEANS_IND.mat";
+    if (isfile(GG_Kmeans_File))
+        KMEANS = load(GG_Kmeans_File);
         KMEANS = KMEANS.idx;
     else
         KMEANS = zeros(pairsize , 8);
         centers = input('How many clusters would you like to create');
         for p = 1:8
-            pair_ind = p:8:79760;
+            pair_ind = p:8:length(DATA);
             KMEANS(:,p) = kmeans(DATA(pair_ind,:),centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
         end
-        save(Kmeans_File,'KMEANS');
+        save(GG_Kmeans_File,'KMEANS');
     end
     
     %Save for later
-    save('G4_Workspace.mat');
+    save(G4 + "_Workspace.mat");
     bool = false;
 else
     bool = true;
