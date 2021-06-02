@@ -4,93 +4,112 @@
 %Author: Angel-Emilio Villegas Sanchez
 %LAST UPDATE: 06/01/21
 
-global KMEANS %This variable is a clustering of individual strands of data
+global KM_pair %This variable is a clustering of individual strands of data
 global DATA params TI TI_Length minpts pair pairsize Graph_Params pairnum seven_ftrs G4
-global Indices AI_Ind
+global Indices AI_Ind menu KM_All
 
 G4 = input('Which G4 would you like to analyze:\n-1KF1\n-1K8P\n','s');
-
 if(LoadFiles())
     load(G4 + "_Workspace.mat")
 end
 
-%% User InputIndices
+%% User Input
+menu = input('Would you like a (1) comprehensive analysis, or (2) per-strand analysis');
 
 %Ask for what GG Pair we want to analyze
 Pairs_to_analyze = input("What pair(s) would you like to analyze with dbscan? ");
 params
 Graph_Params = input("\nWhat parameters would you like to graph? ");
-
 fprintf('You''ve chosen to graph %s and %s\n', params(Graph_Params(1)), params(Graph_Params(2)));
-
-for i = 1:length(Pairs_to_analyze)
-    pairnum = Pairs_to_analyze(i);
-    pair = DATA(Indices(:,pairnum),:);
-    
-    %Ask for options per pair
-    Input = -2;
-    while (Input ~= -1)
-        
-        
+if (menu == 1)
+    MenuOpt()
+else
+    for i = 1:length(Pairs_to_analyze)
+        pairnum = Pairs_to_analyze(i);
+        pair = DATA(Indices(:,pairnum),:);
         fprintf('\nTo perform on Pair %i\n',pairnum);
-        fprintf('1)K-Dist Graph\n2)GaugeEpsilons\n3)Gauge Epsilons (No files)\n4) Graph TI and Scatter\n');
-        fprintf('5)Dendogram \n6)Scatter plot from Hierarchical Cutoff\n7)K-Means clustering with time\n');
-        fprintf('8)Rolling Average\n9)Time Scatter Plots\n10)Figures for Paper\n11)DBSCAN\n');
-        Input = input('Choice: ');
-        
-        switch Input
-            case 1
-                if (i == 1)
-                    PlotK_Dist(false)
-                else
-                    PlotK_Dist(true)
-                end
-                legend
-                
-            case 2
-                GaugeEpsilon()
-            case 3
-                GaugeIndivEp()
-            case 4
-                PlotTI()
-            case 5
-                Dendrograms()
-            case 6
-                ClusterHier()
-            case 7
-                Kmeans_Time()
-            case 8
-                RollingAverage()
-            case 9
-                TimeScatter()
-            case 10
-                PaperFigure()
-            case 11
-                DBCluster()
-        end
+        MenuOpt();
     end
 end
 
 %% Additional Functions
-function [] = DBCluster()
-global pair minpts pairsize pairnum DATA Graph_Params seven_ftrs TI AI_Ind
+%Description: This function creates the menu system
+function [] = MenuOpt()
+%Ask for options per pair
+Input = -2;
+while (Input ~= -1)
+    fprintf('1)K-Dist Graph\n2)GaugeEpsilons\n3)Gauge Epsilons (No files)\n4) Graph TI and Scatter\n');
+    fprintf('5)Dendogram \n6)Scatter plot from Hierarchical Cutoff\n7)K-Means clustering\n');
+    fprintf('8)Rolling Average\n9)Time Scatter Plots\n10)Figures for Paper\n11)DBSCAN\n');
+    Input = input('Choice: ');
+    
+    switch Input
+        case 1
+            PlotK_Dist()
+        case 2
+            GaugeEpsilon()
+        case 3
+            GaugeIndivEp()
+        case 4
+            PlotTI()
+        case 5
+            Dendrograms()
+        case 6
+            ClusterHier()
+        case 7
+            Kmeans()
+        case 8
+            RollingAverage()
+        case 9
+            TimeScatter()
+        case 10
+            PaperFigure()
+        case 11
+            DBCluster()
+    end
+end
+end
+
+%Description: Plot's the smallest Kth Distance for every point n the data.
+function [] = PlotK_Dist()
+global minpts pair menu DATA
+
 figure
-kD = pdist2(DATA,DATA,'euc','Smallest',minpts); % The minpts smallest pairwise distances
+ylabel("12th Smallest Distances to points")
+xlabel("Number of points ")
+if (menu == 1)
+    kD = pdist2(pair,pair,'euc','Smallest',minpts);
+    title("K-Distance Graph (Pair " + num2str(pair) + ")")
+else
+    kD = pdist2(DATA,DATA,'euc','Smallest',minpts);
+    title("K-Distance Graph: All data")
+end
 plot(sort(kD(end,:)));
+end
+
+%Description: This function does a DBSCAN on either strands or full data 
+function [] = DBCluster()
+global pair minpts DATA Graph_Params TI AI_Ind menu
 
 eps = input('What epsilon would you like?');
-labels = dbscan(DATA,eps,minpts);
-
-figure
-gscatter(DATA(:,Graph_Params(1)),DATA(:,Graph_Params(2)),labels)
-
-%Plot the TI over time. Find overlap of indices
-DAT_Ind = 1:length(DATA);
-DAT_Ind = DAT_Ind(labels == 1); %Get the density connected values
-Conn_Ind = intersect(DAT_Ind,AI_Ind);
-TI_Ind = (AI_Ind == Conn_Ind');
-TI_Ind = any(TI_Ind);
-plot(1:length(Conn_Ind),TI(TI_Ind))
+if (menu==1)
+    labels = dbscan(DATA,eps,minpts);
+    figure
+    gscatter(DATA(:,Graph_Params(1)),DATA(:,Graph_Params(2)),labels)
+    
+    %Plot the TI over time. Find overlap of indices
+    DAT_Ind = 1:length(DATA);
+    DAT_Ind = DAT_Ind(labels == 1); %Get the density connected values
+    Conn_Ind = intersect(DAT_Ind,AI_Ind);
+    TI_Ind = (AI_Ind == Conn_Ind');
+    TI_Ind = any(TI_Ind);
+    figure
+    plot(1:length(Conn_Ind),TI(TI_Ind))
+else
+    labels = dbscan(pair,eps,minpts);
+    figure
+    gscatter(pair(:,Graph_Params(1)),pair(:,Graph_Params(2)),labels)
+end
 end
 
 % Description: This function tests a range of values between 2 epsilons.
@@ -98,6 +117,7 @@ end
 % method. It creates various files with statistics regarding each
 % clustering, and separate files with more detailed information of each
 % clustering (corresponding to a unique epsilon).
+% NEEDS REVISION TO ACCOUNT FOR comprehensive/per strand
 function [] = GaugeEpsilon()
 global pair minpts pairsize TI pairnum
 
@@ -254,24 +274,6 @@ C = ((C-pairnum-392)/100) + pairnum;
 
 end
 
-%Description: Plot's the smallest Kth Distance for every point n the data.
-%MUST UPDATE: Add option to do individual pair, or do the whole data
-function [] = PlotK_Dist(append)
-global minpts pair
-if (append)
-    hold on
-else
-    figure
-    title("K-Distance Graph")
-    ylabel("12th Smallest Distances to points")
-    xlabel("Number of points ")
-end
-
-kD = pdist2(pair,pair,'euc','Smallest',minpts); % The minpts smallest pairwise distances
-plot(sort(kD(end,:)));
-
-end
-
 function [] = PlotTI()
 global pair minpts pairnum Graph_Params params TI seven_ftrs;
 
@@ -329,24 +331,27 @@ end
 
 %Description: This function performs a K-means clustering with various k's
 %with silhouette scores to see if there's any
-function [] = Kmeans_Time()
-global pair seven_ftrs TI pairnum KMEANS
+function [] = Kmeans()
+global pair seven_ftrs TI pairnum KM_pair G4
 
 %Create time column for data
-time_1kf1 = [1:2991 3001:3486 3501:5993 6001:10000]' ;
-
+if (G4 == "1KF1")
+    time = [1:2991 3001:3486 3501:5993 6001:10000]' ;
+else
+    time = (1:10000)' ;
+end
 inp = input('1) Cluster Plots\n2) silh\n3) Cluster Evaluation\n4) Plot TI Scatter\n5) K-Means TI Histograms\n\nChoice: ');
 
 % 2 clusters since this maximized the Sillhouette scores before.
 clusts = 2;
-idx = KMEANS(:,pairnum);
+idx = KM_pair(:,pairnum);
 switch inp
     case 1
         ClusterScat()
     case 2
         silh()
     case 3
-        output = KMeansTimeEval();
+        KMeansTimeEval();
     case 4
         TI_Plot_KMeans()
     case 5
@@ -357,12 +362,12 @@ end
 %pool = parpool('threads');
 
 %Description: Simple scatter plot showing the K-means clusters.
-    function output = ClusterScat()
+    function [] = ClusterScat()
         %Go through each cluster
         figure
         for i = 1:clusts
-            clusterpts = (idx == i);
-            scatter(pair(clusterpts,1),pair(clusterpts,3))
+            clst_ind = (idx == i);
+            scatter(pair(clst_ind,1),pair(clst_ind,3))
             hold on
         end
         title("K-Means clustering (k=2) - GG_" + num2str(pairnum))
@@ -389,7 +394,7 @@ end
             %of a sorted set of timestamps (which it already is).
             ind_eval = cell(centers,1);
             for clust = 1:centers
-                time = time_1kf1(idx == clust);
+                time = time(idx == clust);
                 
                 figure
                 plot(1:length(time),time)
@@ -486,7 +491,7 @@ end
 
 %Description: Create Figure for Paper
 function [] = PaperFigure()
-global KMEANS DATA Graph_Params params G4
+global KM_pair DATA Graph_Params params G4
 
 %Create TiledLayout
 figure
@@ -548,14 +553,18 @@ end
 %Description: Load files at beginning of file in order to data ready for
 %analysis.
 function bool = LoadFiles()
-global KMEANS seven_ftrs DATA Indices TI TI_Length params minpts pairsize pair G4 AI_Ind
+global KM_pair seven_ftrs DATA Indices TI TI_Length params minpts pairsize pair G4 AI_Ind KM_All
 
 %Ask user if they want to exchange the original output of Curves in order
 %to fix it
-dat_exc = input('Would you like to exchange columns of negated data (1,2,4,5)? This would fix the negated values (Type 0 or 1): ' );
+dat_exc = input('Would you like to exchange columns of negated data (1,2,4,5)?\n This would fix the negated values (Type 0 or 1): ' );
 dat_exc = cast(dat_exc,'logical');
+G4_workspace = G4;
+if (dat_exc)
+    G4_workspace = G4 + "_de"; %Change naming for new variables
+end
 
-if (~isfile(G4 + "_Workspace.mat"))
+if (~isfile(G4_workspace + "_Workspace.mat"))
     
     % Load Shape Features
     DATA = readmatrix(G4 + ".csv");
@@ -564,7 +573,6 @@ if (~isfile(G4 + "_Workspace.mat"))
         DATA(1:8:length(DATA),4:5) = DATA(1:8:length(DATA),4:5).*-1;
         DATA(2:8:length(DATA),1:2) = DATA(2:8:length(DATA),1:2).*-1;
         DATA(2:8:length(DATA),4:5) = DATA(2:8:length(DATA),4:5).*-1;
-        G4 = G4 + "_de"; %Change naming for new variables
     end
     
     dat_l = length(DATA);
@@ -588,22 +596,37 @@ if (~isfile(G4 + "_Workspace.mat"))
     seven_ftrs (2:8:length(seven_ftrs ),4:5) = seven_ftrs (2:8:length(seven_ftrs ),4:5).*-1;
     
     % Load K_means clustering for individual GG pairs
-    GG_Kmeans_File = G4 + "_KMEANS_IND.mat";
-    if (isfile(GG_Kmeans_File))
-        KMEANS = load(GG_Kmeans_File);
-        KMEANS = KMEANS.idx;
+    Kmeans_pair_File = G4 + "_KM_pair.mat";
+    if (isfile(Kmeans_pair_File))
+        KM_pair = load(Kmeans_pair_File);
+        KM_pair = KM_pair.KMEANS;
     else
-        KMEANS = zeros(pairsize , 8);
+        KM_pair = zeros(pairsize , 8);
         centers = input('How many clusters would you like to create');
         for p = 1:8
             pair_ind = p:8:length(DATA);
-            KMEANS(:,p) = kmeans(DATA(pair_ind,:),centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
+            KM_pair(:,p) = kmean
+            s(DATA(pair_ind,:),centers,'MaxIter',300,'Replicates',300,'Display','off','Options',statset('UseParallel',1));
         end
-        save(GG_Kmeans_File,'KMEANS');
+        save(Kmeans_pair_File,'KM_pair');
+    end
+    
+    % Load K_means clustering for all data
+    Kmeans_pair_File = G4 + "_KM.mat";
+    if (isfile(Kmeans_pair_File))
+        KM_All = load(Kmeans_pair_File);
+        KM_All = KM_All.idx;
+    else
+        centers = input('How many clusters would you like to check for all the data? ');
+        KM_All = zeros(length(DATA) , centers);
+        for p = 1:centers
+            KM_All(:,p) = kmeans(DATA,p,'MaxIter',500,'Replicates',350,'Display','off','Options',statset('UseParallel',1));
+        end
+        save(Kmeans_pair_File,'KM_All');
     end
     
     %Save for later
-    save(G4 + "_Workspace.mat");
+    save(G4_workspace + "_Workspace.mat");
     bool = false;
 else
     bool = true;
