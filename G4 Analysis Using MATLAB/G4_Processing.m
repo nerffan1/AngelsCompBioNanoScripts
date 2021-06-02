@@ -38,7 +38,7 @@ function [] = MenuOpt()
 %Ask for options per pair
 Input = -2;
 while (Input ~= -1)
-    fprintf('1)K-Dist Graph\n2)GaugeEpsilons\n3)Gauge Epsilons (No files)\n4) Graph TI and Scatter\n');
+    fprintf('1)K-Dist Graph\n2)GaugeEpsilons\n3)Gauge Epsilons (No files)\n4)DBSCAN with new TI');
     fprintf('5)Dendogram \n6)Scatter plot from Hierarchical Cutoff\n7)K-Means clustering\n');
     fprintf('8)Rolling Average\n9)Time Scatter Plots\n10)Figures for Paper\n11)DBSCAN\n');
     Input = input('Choice: ');
@@ -51,7 +51,7 @@ while (Input ~= -1)
         case 3
             GaugeIndivEp()
         case 4
-            PlotTI()
+            DBCluster()
         case 5
             Dendrograms()
         case 6
@@ -65,7 +65,7 @@ while (Input ~= -1)
         case 10
             PaperFigure()
         case 11
-            DBCluster()
+            
     end
 end
 end
@@ -87,12 +87,12 @@ end
 plot(sort(kD(end,:)));
 end
 
-%Description: This function does a DBSCAN on either strands or full data 
+%Description: This function does a DBSCAN on either strands or full data
 function [] = DBCluster()
 global pair minpts DATA Graph_Params TI AI_Ind menu
 
 eps = input('What epsilon would you like?');
-if (menu==1)
+if (menu == 1)
     labels = dbscan(DATA,eps,minpts);
     figure
     gscatter(DATA(:,Graph_Params(1)),DATA(:,Graph_Params(2)),labels)
@@ -109,6 +109,9 @@ else
     labels = dbscan(pair,eps,minpts);
     figure
     gscatter(pair(:,Graph_Params(1)),pair(:,Graph_Params(2)),labels)
+    title(strcat(params(1)," vs. ",params(2)))
+    xlabel(params(1))
+    ylabel(params(2))
 end
 end
 
@@ -183,7 +186,6 @@ filename = strcat('EpsTable_Pair_',int2str(pairnum),'_',int2str(minpts),'_minpts
 save(filename,'EpsTable')
 
 end
-
 function [] = GaugeIndivEp()
 global pair minpts pairsize TI pairnum
 
@@ -274,18 +276,9 @@ C = ((C-pairnum-392)/100) + pairnum;
 
 end
 
+%DEPRECATED CODE
 function [] = PlotTI()
-global pair minpts pairnum Graph_Params params TI seven_ftrs;
-
-epsilon = input('Please enter an epsilon value: ');
-
-% Scatter Plot with DBSCAN Labels
-figure
-labels = dbscan(pair,epsilon,minpts);
-gscatter(pair(:,Graph_Params(1)),pair(:,Graph_Params(2)),labels);
-title(strcat(params(1)," vs. ",params(2)))
-xlabel(params(1))
-ylabel(params(2))
+global seven_ftrs;
 
 % % Plot the TI values within cluster of choice
 C = IntersectionTI(labels, 1);
@@ -305,18 +298,28 @@ xlabel("Data Count")
 % xlabel("Data Count")
 end
 
+%Description: Dendogram
 function [] = Dendrograms()
-global DATA pair pairnum
-figure
-link = linkage(pair, 'average');
-dendrogram(link);
+global DATA pair pairnum DATA Graph_Params
 
+figure
+if (menu==1)
+    link = linkage(DATA, 'average');
+else
+    link = linkage(pair, 'average');
+end
+dendrogram(link);
 cutoff = input('What cutoff would you like? ');
 dendrogram(link,'ColorThreshold',cutoff);
+
 %Create cutoff and scatter plot
 figure
 T = cluster(link,'Cutoff',cutoff,'Criterion','distance');
-s = scatter(pair(:,3),pair(:,4),20,T,'.');
+if (menu==1)
+    s = scatter(DATA(:,Graph_Params(1)),DATA(:,Graph_Params(2)),20,T,'.');
+else
+    s = scatter(pair(:,Graph_Params(1)),pair(:,Graph_Params(2)),20,T,'.');
+end
 s.AlphaData  = .01;
 end
 
@@ -332,7 +335,7 @@ end
 %Description: This function performs a K-means clustering with various k's
 %with silhouette scores to see if there's any
 function [] = Kmeans()
-global pair seven_ftrs TI pairnum KM_pair G4
+global pair seven_ftrs TI pairnum KM_pair G4 KM_All
 
 %Create time column for data
 if (G4 == "1KF1")
@@ -343,8 +346,14 @@ end
 inp = input('1) Cluster Plots\n2) silh\n3) Cluster Evaluation\n4) Plot TI Scatter\n5) K-Means TI Histograms\n\nChoice: ');
 
 % 2 clusters since this maximized the Sillhouette scores before.
-clusts = 2;
-idx = KM_pair(:,pairnum);
+if (menu==1)
+    clusts = 2;
+    idx = KM_All(:,pairnum);
+else
+    clusts = 2;
+    idx = KM_pair(:,pairnum);
+end
+
 switch inp
     case 1
         ClusterScat()
