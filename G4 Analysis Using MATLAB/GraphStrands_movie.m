@@ -62,6 +62,7 @@ end
 %     title(strandname{i});
 % end
 
+%Deprecated Function: This function created various
 function m = SeparateStrands(AllData)
 %Start Matrix
 GGPairs = zeros(9970,6,8);
