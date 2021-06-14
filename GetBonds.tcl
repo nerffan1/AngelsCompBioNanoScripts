@@ -1,13 +1,18 @@
 # GET GetGGBonds
 #------------------------------------------------------------------
 # Description: The GetGGBonds procedure gets the bonds from all the pdbs in a directory.
-# Each bond will be appended to a csv file on a line
+# A set of bond lengths will be appended to a csv file. A
 
 package require csv
 
-proc GetGGBonds {} {
+proc GetGGBonds {listfile} {
+     # Read a list since TCL orders files differently with globbing
+     set rfile [open $listfile r]
+     set files [read $rfile]
+     close $rfile
+
      set first 1
-     foreach struct [glob *.pdb] {
+     foreach struct $files {
           mol load pdb $struct
           set sel [atomselect top "all"]
           if {$first == 1} {
@@ -39,8 +44,9 @@ proc GetBondPairs {sel} {
      return lsort -integer -index 0 $BondPairs ;#Order based on first value
 }
 
-#Description: After obtaining a list with all pair of indices corresponding to bonds, WriteCSV
-# appends to a file the bond values
+# Description: After obtaining a list with all pair of indices corresponding to bonds, WriteCSV
+# appends, to a CSV file, the bond values. This output is customized for a paticular PDB structure
+# containing 2 Guanine structures.
 proc WriteCSV {Pairs} {
 set file [open bondlengths.csv a+]
 for {set pair 0} {$pair < 16} {incr pair} {
