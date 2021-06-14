@@ -1,6 +1,10 @@
 # GET GetGGBonds
 #------------------------------------------------------------------
-# Description: The GetGGBonds procedure gets the bonds from all the pdbs in a directory.
+# Description: The GetGGBonds procedure gets the bonds from a set of files that
+# are (1) located in the directory, and (2) have the same structure (i.e. the same
+# amount of atoms and residues). The pair indices are obtained by processing
+# the first file in an ordered list, $listfile, provided by the user. These
+# pairs are printed in order for the user to save them.
 # A set of bond lengths will be appended to a csv file. A
 
 package require csv
@@ -17,6 +21,7 @@ proc GetGGBonds {listfile} {
           set sel [atomselect top "all"]
           if {$first == 1} {
                set Pairs [GetBondPairs $sel]
+               puts [list $Pairs] ;# Pairs are printed for user to save
                set first 0
           }
           WriteCSV $Pairs
