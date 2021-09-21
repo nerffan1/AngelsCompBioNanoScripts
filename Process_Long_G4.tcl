@@ -45,10 +45,10 @@ proc ProcessLongG4 {PDB PDBFile traj} {
 
 proc GGExtract {prefixname filenumber} {
 
-set strands {{11 12 13 14} {34 35 36 37} {58 59 60 61}}
+set strands {{10 11 12 13} {34 35 36 37} {58 59 60 61} {82 83 84 85}}
 
 #Ths is the first index of the atoms we'll extract
-set firstIndex 11
+set firstIndex 12
 
 #This is the number of atoms we'll extract, minus 1
 set atomNum 14
@@ -57,6 +57,7 @@ set atomNum 14
 set pairAmount 3
 
 foreach residue $strands {
+#The following loop might be simplified with another ForEach loop
     for {set gg 0} {$gg < $pairAmount} {incr gg} {
         set res1 [lindex $residue $gg]
         set res2 [lindex $residue [expr $gg + 1]]
@@ -93,7 +94,7 @@ foreach residue $strands {
 #This procedure taking takes specific parameters to make
 proc RangeGGExtract {prefixname step lim} {
     for {set i 0} {$i < $lim} {incr i} {
-        set j [expr $i*100 + 49]
+        set j [expr $i*$step + 49]
         mol top [mol new $prefixname\_$j.pdb]
         GGExtract $prefixname $j
         mol delete top
